@@ -1,5 +1,5 @@
 import socket
-import cv2, imutils, pickle, struct
+import cv2, imutils
 import base64
 import threading
 import numpy as np
@@ -10,71 +10,95 @@ PORT = 2121
 BUFF_SIZE = 65536
 
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+nickname = input("Choose your nickname: ")
 
 vid = cv2.VideoCapture(0)
-WIDTH=400
+WIDTH = 400
 
 client_socket.connect((HOST_IP, PORT))
 
+
 def encode_frame_to_package(frame):
-	encoded,buffer = cv2.imencode('.jpg',frame,[cv2.IMWRITE_JPEG_QUALITY,80])
-	package = base64.b64encode(buffer)
-	return package
+    encoded, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+    package = base64.b64encode(buffer)
+    return package
+
 
 def decode_package_to_frame(packet):
-	
-	data = base64.b64decode(packet,' /')
-	npdata = np.fromstring(data,dtype=np.uint8)
-	frame = cv2.imdecode(npdata,1)
+    data = base64.b64decode(packet, ' /')
+    npdata = np.fromstring(data, dtype=np.uint8)
+    frame = cv2.imdecode(npdata, 1)
 
-	return frame
+    return frame
+
 
 def send_video_to_server():
-	while (vid.isOpened()):
+    while (vid.isOpened()):
 
-		# encode package
-		_,frame = vid.read()
-		frame = imutils.resize(frame,width=WIDTH)
-		package = encode_frame_to_package(frame)
-		try:
-			client_socket.sendall(package)
-		except:
-			print(" -> Broken Pipe ! \n Exiting")
-			break
-	
-		key = cv2.waitKey(1) & 0xFF
-		if key == ord("q"):
+        # encode package
+        _, frame = vid.read()
+        frame = imutils.resize(frame, width=WIDTH)
+        package = encode_frame_to_package(frame)
+        try:
+            client_socket.sendall(package)
+        except:
+            print(" -> Broken Pipe ! \n Exiting")
+            break
 
-			client_socket.close()
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord("q"):
+            client_socket.close()
+
 
 def recv_video_from_server():
-	while True:
+    while True:
 
-		data = client_socket.recv(BUFF_SIZE)
-		try:
-			recv_object = pickle.loads(data)
-			package = recv_object['package']
-			addr = recv_object['addr']
+        data = client_socket.recv(BUFF_SIZE)
+        try:
+            recv_object = pickle.loads(data)
+            package = recv_object['package']
+            addr = recv_object['addr']
 
-			frame = decode_package_to_frame(package)
-			
-			nameWindow = str(addr[0]) + " " + str(addr[1])
-			cv2.namedWindow(nameWindow)
-			cv2.imshow(nameWindow, frame)
-			if cv2.waitKey(1) & 0xFF == ord('q'):
-				client_socket.close()
-				break
-		except:
-			pass
+            frame = decode_package_to_frame(package)
 
-if client_socket:
-
-	send_video_thread = threading.Thread(target=send_video_to_server)
-	recv_video_thread = threading.Thread(target=recv_video_from_server)
-	send_video_thread.start()
-	recv_video_thread.start()
-
-	
+            nameWindow = str(addr[0]) + " " + str(addr[1])
+            cv2.namedWindow(nameWindow)
+            cv2.imshow(nameWindow, frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                client_socket.close()
+                break
+        except:
+            pass
 
 
-	
+def receive():
+    while True:
+        try:
+            message = client_socket.recv(1024).decode('utf8')
+            if message == 'NICK':
+                client_socket.send(nickname.encode('utf8'))
+            else:
+                print(message)
+        except:
+            print("An error occured!")
+            client_socket.close()
+            break
+
+
+def write():
+    while True:
+        message = '{}: {}'.format(nickname, input(''))
+        client_socket.send(message.encode('utf8'))
+
+
+receive_thread = threading.Thread(target=receive)
+receive_thread.start()
+
+write_thread = threading.Thread(target=write)
+write_thread.start()
+
+# if client_socket:
+#     send_video_thread = threading.Thread(target=send_video_to_server)
+#     recv_video_thread = threading.Thread(target=recv_video_from_server)
+#     send_video_thread.start()
+#     recv_video_thread.start()

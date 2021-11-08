@@ -1,5 +1,5 @@
 import socket
-import cv2, imutils, pickle, struct
+import cv2, imutils, pickle
 import base64
 import threading
 import numpy as np
@@ -21,7 +21,7 @@ def encode_frame_to_package(frame):
 	return package
 
 def decode_package_to_frame(packet):
-	
+
 	data = base64.b64decode(packet,' /')
 	npdata = np.fromstring(data,dtype=np.uint8)
 	frame = cv2.imdecode(npdata,1)
@@ -40,7 +40,7 @@ def send_video_to_server():
 		except:
 			print(" -> Broken Pipe ! \n Exiting")
 			break
-	
+
 		key = cv2.waitKey(1) & 0xFF
 		if key == ord("q"):
 
@@ -56,7 +56,7 @@ def recv_video_from_server():
 			addr = recv_object['addr']
 
 			frame = decode_package_to_frame(package)
-			
+
 			nameWindow = str(addr[0]) + " " + str(addr[1])
 			cv2.namedWindow(nameWindow)
 			cv2.imshow(nameWindow, frame)
@@ -65,7 +65,7 @@ def recv_video_from_server():
 				break
 		except:
 			pass
-	
+
 
 if client_socket:
 
@@ -73,8 +73,3 @@ if client_socket:
 	recv_video_thread = threading.Thread(target=recv_video_from_server)
 	send_video_thread.start()
 	recv_video_thread.start()
-
-	
-
-
-	
